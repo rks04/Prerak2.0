@@ -1,0 +1,5 @@
+{"event_id":"evt_3868ec08","execution_id":"exec_a3a1bd85","timestamp":"2026-06-08T10:11:56.520943","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"PLANNING"}}
+{"event_id":"evt_1c8abe57","execution_id":"exec_a3a1bd85","timestamp":"2026-06-08T10:12:14.444199","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"CODING"}}
+{"event_id":"evt_9a90eff5","execution_id":"exec_a3a1bd85","timestamp":"2026-06-08T10:12:24.362134","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"EXECUTING"}}
+{"event_id":"evt_855e7135","execution_id":"exec_a3a1bd85","timestamp":"2026-06-08T10:12:24.363134","event_type":"tool_executed","tool":"write_file","success":false,"path":"/home/user/hello.py","details":{"output":null,"error":"Path traversal attempt: /home/user/hello.py escapes workspace D:\\Riya\\Prerak2.0\\backend\\workspace_test"}}
+{"event_id":"evt_4359851b","execution_id":"exec_a3a1bd85","timestamp":"2026-06-08T10:12:24.363512","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"FAILED"}}

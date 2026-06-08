@@ -1,0 +1,7 @@
+{"event_id":"evt_f1874ba3","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:12:57.248454","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"PLANNING"}}
+{"event_id":"evt_21c14739","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:18.983041","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"CODING"}}
+{"event_id":"evt_dca2dea2","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:29.384478","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"EXECUTING"}}
+{"event_id":"evt_cacf40f0","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:29.385586","event_type":"tool_executed","tool":"write_file","success":true,"path":"hello.py","details":{"output":"Successfully wrote to hello.py","error":null}}
+{"event_id":"evt_a7866dd5","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:29.386023","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"VERIFYING"}}
+{"event_id":"evt_f198cdee","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:29.491827","event_type":"verification_finished","tool":null,"success":true,"path":"hello.py","details":{}}
+{"event_id":"evt_3f331621","execution_id":"exec_664f9e8c","timestamp":"2026-06-08T10:13:29.492112","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"SUCCESS"}}

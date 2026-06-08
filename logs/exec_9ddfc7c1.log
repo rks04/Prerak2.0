@@ -1,0 +1,2 @@
+{"event_id":"evt_500454f8","execution_id":"exec_9ddfc7c1","timestamp":"2026-06-08T10:08:57.434943","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"PLANNING"}}
+{"event_id":"evt_d211ef3b","execution_id":"exec_9ddfc7c1","timestamp":"2026-06-08T10:08:57.984859","event_type":"state_transition","tool":null,"success":null,"path":null,"details":{"new_state":"FAILED"}}
