@@ -19,8 +19,10 @@ from app.tools.file_tools.write_file import write_file
 from app.tools.file_tools.read_file import read_file
 from app.tools.file_tools.edit_file import edit_file
 from app.tools.workspace_tools.list_files import list_files
+from app.tools.terminal_tools.execute_terminal import execute_terminal
 
 tool_registry.register("write_file", write_file)
 tool_registry.register("read_file", read_file)
 tool_registry.register("edit_file", edit_file)
 tool_registry.register("list_files", list_files)
+tool_registry.register("execute_terminal", execute_terminal)

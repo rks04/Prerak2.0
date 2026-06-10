@@ -11,8 +11,15 @@ class PlannerAgent:
         system_prompt = (
             "You are a fast Planning Agent. "
             "Output pure JSON matching: "
-            "{ 'goal': 'string', 'steps': [ { 'step': int, 'action': 'string', 'path': 'relative_path' } ] }. "
-            "Valid actions: ['read_file', 'write_file', 'edit_file', 'list_files']. "
+            "{ 'goal': 'string', 'steps': [ { 'step': int, 'action': 'string', 'path': 'relative_path', 'command': 'optional shell command' } ] }. "
+            "Valid actions: ['read_file', 'write_file', 'edit_file', 'list_files', 'execute_terminal']. "
+            "For execute_terminal, provide the exact shell command in 'command' and leave 'path' empty. "
+            "ENVIRONMENT: Operating System: Windows. Shell: CMD/Powershell. "
+            "IMPORTANT RULES: "
+            "1. Use the MINIMUM number of steps required. "
+            "2. Do NOT use bash syntax (no source, chmod, apt-get, rm, /bin/). "
+            "3. Do NOT create virtual environments unless explicitly requested. "
+            "4. Do NOT chain multiple commands with && if they can be run separately. "
             "Do NOT include explanations. Only return valid JSON."
         )
         

@@ -68,8 +68,16 @@ class Orchestrator:
         
         try:
             # ---> BUILD PLANNER CONTEXT <---
-            context_result = context_builder.build_planner_context(prompt, self.workspace_root)
+            context_result = context_builder.build_planner_context(prompt, self.workspace_root, convo_id)
             context_text = context_result["formatted_text"]
+            
+            await event_bus.publish(PrerakEvent(
+                conversation_id=convo_id,
+                execution_id=session.execution_id,
+                workspace_root=self.workspace_root,
+                event_type="context_built",
+                details=context_result["metadata"]
+            ))
             
             if settings.RUNTIME_MODE == RuntimeMode.MOCK.value:
                 if "Hello World" in prompt:
@@ -107,93 +115,171 @@ class Orchestrator:
             return False
 
         # 2. CODING & EXECUTING LOOP
+        MAX_RETRIES = 3
         for step in planner_out.steps:
-            await self.log_transition(session, ExecutionState.CODING)
-            await event_bus.publish(PrerakEvent(
-                conversation_id=convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="coder_started"
-            ))
+            step_success = False
+            error_feedback = None
             
-            try:
-                # ---> BUILD CODER CONTEXT FOR THIS SPECIFIC STEP <---
-                coder_context_result = context_builder.build_coder_context(prompt, self.workspace_root, step.path or "")
-                coder_context_text = coder_context_result["formatted_text"]
+            for attempt in range(MAX_RETRIES):
+                await self.log_transition(session, ExecutionState.CODING)
+                await event_bus.publish(PrerakEvent(
+                    conversation_id=convo_id,
+                    execution_id=session.execution_id,
+                    workspace_root=self.workspace_root,
+                    event_type="coder_started"
+                ))
                 
-                if settings.RUNTIME_MODE == RuntimeMode.MOCK.value:
-                    coder_out = CoderOutput(
-                        tool="write_file",
-                        path=step.path,
-                        content="print('Hello World')"
-                    )
-                else:
-                    coder_out = await self.coder.handle_task(prompt, step.action, step.path or "", coder_context_text)
+                try:
+                    # ---> BUILD CODER CONTEXT FOR THIS SPECIFIC STEP <---
+                    coder_context_result = context_builder.build_coder_context(prompt, self.workspace_root, step.path or "")
+                    coder_context_text = coder_context_result["formatted_text"]
                     
-                await event_bus.publish(PrerakEvent(
-                    conversation_id=convo_id,
-                    execution_id=session.execution_id,
-                    workspace_root=self.workspace_root,
-                    event_type="coder_completed",
-                    details=coder_out.model_dump()
-                ))
-            except Exception as e:
-                await self.log_transition(session, ExecutionState.FAILED)
-                await event_bus.publish(PrerakEvent(
-                    conversation_id=convo_id,
-                    execution_id=session.execution_id,
-                    workspace_root=self.workspace_root,
-                    event_type="execution_failed",
-                    details={"error": f"Coding failed: {str(e)}"}
-                ))
-                print(f"Coding failed: {e}")
-                return False
-            
-            # 3. EXECUTING
-            await self.log_transition(session, ExecutionState.EXECUTING)
-            await event_bus.publish(PrerakEvent(
-                conversation_id=convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="tool_started",
-                tool=coder_out.tool,
-                path=coder_out.path
-            ))
-            
-            tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path}
-            if coder_out.tool == "write_file":
-                tool_kwargs["content"] = coder_out.content or ""
-            elif coder_out.tool == "edit_file":
-                tool_kwargs["old_content"] = coder_out.old_content or ""
-                tool_kwargs["new_content"] = coder_out.new_content or ""
+                    if settings.RUNTIME_MODE == RuntimeMode.MOCK.value:
+                        coder_out = CoderOutput(
+                            tool="write_file",
+                            path=step.path,
+                            content="print('Hello World')"
+                        )
+                    else:
+                        coder_out = await self.coder.handle_task(prompt, step.action, step.path or "", coder_context_text, error_feedback)
+                        
+                    await event_bus.publish(PrerakEvent(
+                        conversation_id=convo_id,
+                        execution_id=session.execution_id,
+                        workspace_root=self.workspace_root,
+                        event_type="coder_completed",
+                        details=coder_out.model_dump()
+                    ))
+                except Exception as e:
+                    await self.log_transition(session, ExecutionState.FAILED)
+                    await event_bus.publish(PrerakEvent(
+                        conversation_id=convo_id,
+                        execution_id=session.execution_id,
+                        workspace_root=self.workspace_root,
+                        event_type="execution_failed",
+                        details={"error": f"Coding failed: {str(e)}"}
+                    ))
+                    print(f"Coding failed: {e}")
+                    return False
                 
-            result = self.executor.execute(coder_out.tool, tool_kwargs)
-            
-            await event_bus.publish(PrerakEvent(
-                conversation_id=session.convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="tool_completed",
-                tool=coder_out.tool,
-                path=coder_out.path,
-                success=result.success,
-                details={"output": result.output, "error": result.error}
-            ))
+                # 3. EXECUTING
+                await self.log_transition(session, ExecutionState.EXECUTING)
+                await event_bus.publish(PrerakEvent(
+                    conversation_id=convo_id,
+                    execution_id=session.execution_id,
+                    workspace_root=self.workspace_root,
+                    event_type="tool_started",
+                    tool=coder_out.tool,
+                    path=coder_out.path
+                ))
+                
+                tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path}
+                if coder_out.tool == "write_file":
+                    tool_kwargs["content"] = coder_out.content or ""
+                elif coder_out.tool == "edit_file":
+                    tool_kwargs["old_content"] = coder_out.old_content or ""
+                    tool_kwargs["new_content"] = coder_out.new_content or ""
+                elif coder_out.tool == "execute_terminal":
+                    tool_kwargs = {"workspace_root": self.workspace_root, "command": coder_out.command or ""}
+                    await event_bus.publish(PrerakEvent(
+                        conversation_id=convo_id,
+                        execution_id=session.execution_id,
+                        workspace_root=self.workspace_root,
+                        event_type="terminal_started",
+                        details={"command": tool_kwargs["command"]}
+                    ))
+                
+                # --- PRE-EXECUTION SNAPSHOT ---
+                before_content = ""
+                diff_tools = ["write_file", "edit_file", "delete_file"]
+                if coder_out.tool in diff_tools and coder_out.path:
+                    safe_path = resolve_safe_path(self.workspace_root, coder_out.path)
+                    if safe_path.exists() and safe_path.is_file():
+                        try:
+                            before_content = safe_path.read_text(encoding="utf-8")
+                        except Exception:
+                            pass
 
-            if not result.success:
+                result = self.executor.execute(coder_out.tool, tool_kwargs)
+                
+                # --- POST-EXECUTION SNAPSHOT & DIFF GENERATION ---
+                if result.success and coder_out.tool in diff_tools and coder_out.path:
+                    after_content = ""
+                    if safe_path.exists() and safe_path.is_file():
+                        try:
+                            after_content = safe_path.read_text(encoding="utf-8")
+                        except Exception:
+                            pass
+                            
+                    from app.diff.patch_engine import patch_engine
+                    diff_patch = patch_engine.generate_diff(coder_out.path, before_content, after_content)
+                    
+                    if diff_patch:
+                        await event_bus.publish(PrerakEvent(
+                            conversation_id=convo_id,
+                            execution_id=session.execution_id,
+                            workspace_root=self.workspace_root,
+                            event_type="diff_generated",
+                            path=coder_out.path,
+                            details={
+                                "before": before_content,
+                                "after": after_content,
+                                "diff": diff_patch
+                            }
+                        ))
+                        
+                if coder_out.tool == "execute_terminal":
+                    if result.success:
+                        await event_bus.publish(PrerakEvent(
+                            conversation_id=convo_id,
+                            execution_id=session.execution_id,
+                            workspace_root=self.workspace_root,
+                            event_type="terminal_completed",
+                            details={"output": result.output}
+                        ))
+                    else:
+                        await event_bus.publish(PrerakEvent(
+                            conversation_id=convo_id,
+                            execution_id=session.execution_id,
+                            workspace_root=self.workspace_root,
+                            event_type="terminal_failed",
+                            details={"error": result.error}
+                        ))
+                
+                await event_bus.publish(PrerakEvent(
+                    conversation_id=session.convo_id,
+                    execution_id=session.execution_id,
+                    workspace_root=self.workspace_root,
+                    event_type="tool_completed",
+                    tool=coder_out.tool,
+                    path=coder_out.path,
+                    success=result.success,
+                    details={"output": result.output, "error": result.error}
+                ))
+
+                if result.success:
+                    step_success = True
+                    # Record touched file on success
+                    if coder_out.path:
+                        touched_files.append({"path": coder_out.path, "action": coder_out.tool})
+                    break # exit retry loop
+                else:
+                    error_feedback = result.error
+                    if attempt < MAX_RETRIES - 1:
+                        await self.log_transition(session, ExecutionState.RECOVERING)
+                        # Loop continues to retry
+            
+            if not step_success:
                 await self.log_transition(session, ExecutionState.FAILED)
                 await event_bus.publish(PrerakEvent(
                     conversation_id=convo_id,
                     execution_id=session.execution_id,
                     workspace_root=self.workspace_root,
                     event_type="execution_failed",
-                    details={"error": f"Tool execution failed: {result.error}"}
+                    details={"error": f"Tool execution failed after {MAX_RETRIES} attempts: {error_feedback}"}
                 ))
                 await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.FAILED.value, False, touched_files)
                 return False
-                
-            # Record touched file on success
-            touched_files.append({"path": coder_out.path, "action": coder_out.tool})
 
         # 4. VERIFYING
         await self.log_transition(session, ExecutionState.VERIFYING)

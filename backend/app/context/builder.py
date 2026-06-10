@@ -14,8 +14,8 @@ class ContextBuilder:
         self.token_manager = TokenManager(max_chars=14000)
         self.formatter = Formatter()
 
-    def build_planner_context(self, prompt: str, workspace_root: str) -> dict:
-        recent_messages = self.messages_provider.get_recent_messages(limit=3)
+    def build_planner_context(self, prompt: str, workspace_root: str, convo_id: str) -> dict:
+        recent_messages = self.messages_provider.get_recent_messages(workspace_root=workspace_root, convo_id=convo_id, limit=3)
         workspace_files = self.workspace_provider.get_files_in_root(workspace_root)
         
         # No file reading for planner! Massive speedup.
