@@ -69,7 +69,10 @@ async def get_conversation_history(workspace_id: str, conversation_id: str, db: 
         raise HTTPException(status_code=404, detail="Workspace not found")
         
     events = []
-    log_path = os.path.join(workspace.workspace_path, ".prerak", conversation_id, "messages.json")
+    import hashlib
+    path_hash = hashlib.md5(workspace.workspace_path.encode('utf-8')).hexdigest()[:8]
+    workspace_name = f"{os.path.basename(workspace.workspace_path)}_{path_hash}"
+    log_path = os.path.join(".memory", "code", workspace_name, conversation_id, "messages.json")
     if os.path.exists(log_path):
         with open(log_path, "r", encoding="utf-8") as f:
             for line in f:

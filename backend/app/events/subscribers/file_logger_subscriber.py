@@ -11,8 +11,11 @@ class FileLoggerSubscriber:
     async def handle_event(self, event: PrerakEvent):
         def _write():
             if event.workspace_root:
-                # CODE MEMORY: Inside the workspace itself
-                base_dir = Path(event.workspace_root) / ".prerak" / event.conversation_id
+                # CODE MEMORY: Global memory for workspace chats
+                import hashlib
+                path_hash = hashlib.md5(event.workspace_root.encode('utf-8')).hexdigest()[:8]
+                workspace_name = f"{Path(event.workspace_root).name}_{path_hash}"
+                base_dir = Path(".memory") / "code" / workspace_name / event.conversation_id
             else:
                 # CHAT MEMORY: Global memory for non-workspace chats
                 base_dir = Path(".memory") / "chat" / event.conversation_id
@@ -34,6 +37,14 @@ class FileLoggerSubscriber:
                 }
                 with open(meta_file, "w", encoding="utf-8") as f:
                     json.dump(meta_data, f, indent=2)
+                    
+                # Initialize other memory files
+                with open(base_dir / "summary.json", "w", encoding="utf-8") as f:
+                    json.dump({"summary": ""}, f, indent=2)
+                with open(base_dir / "tasks.json", "w", encoding="utf-8") as f:
+                    json.dump({"tasks": []}, f, indent=2)
+                with open(base_dir / "workspace-state.json", "w", encoding="utf-8") as f:
+                    json.dump({"active_files": []}, f, indent=2)
             else:
                 # Update last_active
                 try:

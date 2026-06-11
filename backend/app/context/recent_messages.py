@@ -10,7 +10,10 @@ class RecentMessagesProvider:
 
     def get_recent_messages(self, workspace_root: str, convo_id: str, limit: int = 3) -> List[Dict[str, str]]:
         messages = []
-        log_file = Path(workspace_root) / ".prerak" / convo_id / "messages.json"
+        import hashlib
+        path_hash = hashlib.md5(workspace_root.encode('utf-8')).hexdigest()[:8]
+        workspace_name = f"{Path(workspace_root).name}_{path_hash}"
+        log_file = self.memory_dir / "code" / workspace_name / convo_id / "messages.json"
         
         if not log_file.exists():
             return messages
