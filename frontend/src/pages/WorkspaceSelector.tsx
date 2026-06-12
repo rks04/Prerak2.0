@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { API_BASE_URL } from '../config';
 
 export function WorkspaceSelector() {
   const [path, setPath] = useState("D:/Riya/MyProject");
@@ -12,7 +14,7 @@ export function WorkspaceSelector() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/workspace/open", {
+      const res = await fetch(`${API_BASE_URL}/api/workspace/open`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path }),

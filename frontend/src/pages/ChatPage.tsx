@@ -4,6 +4,8 @@ import { useSocketStore } from "@/stores/socketStore";
 import { ExecutionTimeline } from "@/components/execution/ExecutionTimeline";
 import { PromptInput } from "@/components/chat/PromptInput";
 import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from 'date-fns';
+import { API_BASE_URL } from '../config';
 import { FolderOpen, Plus } from "lucide-react";
 
 export function ChatPage() {
@@ -21,7 +23,7 @@ export function ChatPage() {
     }
     
     // Fetch historical events and workspace details
-    fetch(`http://127.0.0.1:8000/api/workspace/${workspaceId}/conversation/${conversationId}`)
+    fetch(`${API_BASE_URL}/api/workspace/${workspaceId}/conversation/${conversationId}`)
       .then(res => res.json())
       .then(data => {
         if (data.workspace_name) setWorkspaceName(data.workspace_name);
@@ -31,7 +33,7 @@ export function ChatPage() {
       .catch(console.error);
 
     // Fetch all conversations for the sidebar
-    fetch(`http://127.0.0.1:8000/api/workspace/${workspaceId}/conversations`)
+    fetch(`${API_BASE_URL}/api/workspace/${workspaceId}/conversations`)
       .then(res => res.json())
       .then(data => {
         setConversations(data);
@@ -52,7 +54,7 @@ export function ChatPage() {
 
     try {
       // 1. Resolve workspace
-      const wsRes = await fetch("http://127.0.0.1:8000/api/workspace/open", {
+      const wsRes = await fetch(`${API_BASE_URL}/api/workspace/open`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: targetPath }),
@@ -61,7 +63,7 @@ export function ChatPage() {
       const wsData = await wsRes.json();
 
       // 2. Force new conversation in resolved workspace
-      const res = await fetch(`http://127.0.0.1:8000/api/workspace/${wsData.workspace_id}/conversation`, {
+      const res = await fetch(`${API_BASE_URL}/api/workspace/${wsData.workspace_id}/conversation`, {
         method: "POST"
       });
       
@@ -82,7 +84,7 @@ export function ChatPage() {
       return;
     }
     try {
-      await fetch("http://127.0.0.1:8000/api/trigger", {
+      await fetch(`${API_BASE_URL}/api/trigger`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, convo_id: conversationId, workspace_id: workspaceId })
