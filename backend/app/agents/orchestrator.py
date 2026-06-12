@@ -96,14 +96,6 @@ class Orchestrator:
             else:
                 planner_out = await self.planner.decompose_task(f"Task: {prompt}\n\nWorkspace Context:\n{context_text}")
                 
-            await event_bus.publish(PrerakEvent(
-                conversation_id=convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="planner_completed",
-                details=planner_out.model_dump()
-            ))
-            
             # --- ORCHESTRATOR VALIDATION (Deterministic File Targeting) ---
             explicit_files = context_result["metadata"].get("explicit_files", [])
             if explicit_files:
@@ -122,7 +114,28 @@ class Orchestrator:
                                 details={"reason": "not in explicit user files", "explicit_files": explicit_files}
                             ))
                             raise ValueError(f"Planner attempted unauthorized file modification: {step.path} is not in explicit user files.")
+            
+            # --- ORCHESTRATOR SAFETY: Prevent redundant edit after write ---
+            optimized_steps = []
+            for i, step in enumerate(planner_out.steps):
+                if (
+                    i > 0
+                    and step.action == "edit_file"
+                    and planner_out.steps[i - 1].action == "write_file"
+                    and step.path == planner_out.steps[i - 1].path
+                ):
+                    continue
+                optimized_steps.append(step)
+            planner_out.steps = optimized_steps
             # -------------------------------------------------------------
+            
+            await event_bus.publish(PrerakEvent(
+                conversation_id=convo_id,
+                execution_id=session.execution_id,
+                workspace_root=self.workspace_root,
+                event_type="planner_completed",
+                details=planner_out.model_dump()
+            ))
             
         except Exception as e:
             await self.log_transition(session, ExecutionState.FAILED)
@@ -163,7 +176,15 @@ class Orchestrator:
                             content="print('Hello World')"
                         )
                     else:
-                        coder_out = await self.coder.handle_task(prompt, step.action, step.path or "", coder_context_text, error_feedback)
+                        READ_ONLY_TOOLS = ["search_code", "list_files", "read_file"]
+                        if step.action in READ_ONLY_TOOLS:
+                            coder_out = CoderOutput(
+                                tool=step.action,
+                                path=step.path,
+                                query=step.query
+                            )
+                        else:
+                            coder_out = await self.coder.handle_task(prompt, step.action, step.path or "", coder_context_text, error_feedback)
                         
                     await event_bus.publish(PrerakEvent(
                         conversation_id=convo_id,
@@ -195,12 +216,19 @@ class Orchestrator:
                     path=coder_out.path
                 ))
                 
-                tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path}
+                # --- DYNAMIC TOOL ARGUMENT DISPATCH ---
                 if coder_out.tool == "write_file":
-                    tool_kwargs["content"] = coder_out.content or ""
+                    tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path, "content": coder_out.content or ""}
                 elif coder_out.tool == "edit_file":
-                    tool_kwargs["old_content"] = coder_out.old_content or ""
-                    tool_kwargs["new_content"] = coder_out.new_content or ""
+                    tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path, "old_content": coder_out.old_content or "", "new_content": coder_out.new_content or ""}
+                elif coder_out.tool == "read_file":
+                    tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path}
+                elif coder_out.tool == "list_files":
+                    tool_kwargs = {"workspace_root": self.workspace_root}
+                elif coder_out.tool == "search_code":
+                    tool_kwargs = {"workspace_root": self.workspace_root, "query": coder_out.query or ""}
+                elif coder_out.tool == "delete_file":
+                    tool_kwargs = {"workspace_root": self.workspace_root, "path": coder_out.path}
                 elif coder_out.tool == "execute_terminal":
                     tool_kwargs = {"workspace_root": self.workspace_root, "command": coder_out.command or ""}
                     await event_bus.publish(PrerakEvent(
@@ -210,6 +238,8 @@ class Orchestrator:
                         event_type="terminal_started",
                         details={"command": tool_kwargs["command"]}
                     ))
+                else:
+                    tool_kwargs = {"workspace_root": self.workspace_root} # Fallback
                 
                 # --- PRE-EXECUTION SNAPSHOT ---
                 before_content = ""
@@ -284,6 +314,14 @@ class Orchestrator:
                     if coder_out.tool in ["write_file", "edit_file"] and coder_out.path and coder_out.path.endswith('.py'):
                         safe_path = resolve_safe_path(self.workspace_root, coder_out.path)
                         if safe_path.exists():
+                            await event_bus.publish(PrerakEvent(
+                                conversation_id=convo_id,
+                                execution_id=session.execution_id,
+                                workspace_root=self.workspace_root,
+                                event_type="verification_started",
+                                path=coder_out.path
+                            ))
+                            
                             ver_result = self.verifier.verify_syntax(str(safe_path))
                             if not ver_result.success:
                                 await event_bus.publish(PrerakEvent(
@@ -305,6 +343,15 @@ class Orchestrator:
                                     ))
                                     await self.log_transition(session, ExecutionState.RECOVERING)
                                 continue # jump to next retry attempt!
+                            else:
+                                await event_bus.publish(PrerakEvent(
+                                    conversation_id=session.convo_id,
+                                    execution_id=session.execution_id,
+                                    workspace_root=self.workspace_root,
+                                    event_type="verification_completed",
+                                    success=True,
+                                    path=coder_out.path
+                                ))
                                 
                     step_success = True
                     # Record touched file on success
@@ -313,9 +360,15 @@ class Orchestrator:
                     break # exit retry loop
                 else:
                     error_feedback = result.error
-                    if attempt < MAX_RETRIES - 1:
+                    
+                    RECOVERABLE_TOOLS = ["write_file", "edit_file", "execute_terminal"]
+                    is_backend_crash = any(err in result.error for err in ["AttributeError", "ImportError", "RuntimeError"])
+                    
+                    if coder_out.tool in RECOVERABLE_TOOLS and attempt < MAX_RETRIES - 1 and not is_backend_crash:
                         await self.log_transition(session, ExecutionState.RECOVERING)
                         # Loop continues to retry
+                    else:
+                        break # Cannot recover from read tool errors or backend crashes
             
             if not step_success:
                 await self.log_transition(session, ExecutionState.FAILED)

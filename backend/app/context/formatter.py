@@ -3,7 +3,7 @@ from typing import List, Dict
 class Formatter:
     """Formats assembled context into plain structured text (NO XML)."""
     
-    def format_planner_context(self, prompt: str, recent_messages: List[Dict[str, str]], workspace_files: List[str]) -> str:
+    def format_planner_context(self, prompt: str, recent_messages: List[Dict[str, str]], workspace_files: List[str], semantic_context: str = "") -> str:
         parts = []
         if recent_messages:
             parts.append("=== RECENT MESSAGES ===")
@@ -18,6 +18,11 @@ class Formatter:
         else:
             parts.append("(Empty workspace)")
         parts.append("")
+        
+        if semantic_context:
+            parts.append("=== SEMANTIC SEARCH RESULTS FOR YOUR QUERY ===")
+            parts.append(semantic_context)
+            parts.append("")
         
         parts.append("=== CURRENT REQUEST ===")
         parts.append(prompt)

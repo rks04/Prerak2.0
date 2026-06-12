@@ -20,14 +20,14 @@ class OllamaClient:
         if json_mode:
             payload["format"] = "json"
             
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=900.0) as client:
             try:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
                 return data.get("response", "")
             except httpx.TimeoutException:
-                raise TimeoutError("Ollama took too long to respond (> 300s). Try a simpler prompt or ensure your local model is loaded.")
+                raise TimeoutError("Ollama took too long to respond (> 900s). Try a simpler prompt or ensure your local model is loaded.")
             except Exception as e:
                 raise RuntimeError(f"Ollama connection error: {str(e)}")
 

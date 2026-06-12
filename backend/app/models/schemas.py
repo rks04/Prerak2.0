@@ -6,6 +6,7 @@ class PlannerStep(BaseModel):
     action: str
     path: Optional[str] = None
     command: Optional[str] = None
+    query: Optional[str] = None
 
 class PlannerOutput(BaseModel):
     goal: str
@@ -18,3 +19,4 @@ class CoderOutput(BaseModel):
     old_content: Optional[str] = None
     new_content: Optional[str] = None
     command: Optional[str] = None
+    query: Optional[str] = None

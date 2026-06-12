@@ -3,7 +3,7 @@ class ModelRouter:
     
     @staticmethod
     def get_planner_model() -> str:
-        return "llama3.1:latest"
+        return "Qwen2.5-Coder:3B"
         
     @staticmethod
     def get_coder_model() -> str:

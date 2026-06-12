@@ -10,11 +10,11 @@ class CoderAgent:
         model = ModelRouter.get_coder_model()
         system_prompt = (
             "You are a strict Coder Agent. "
-            "Your ONLY job is to output pure JSON matching the exact schema: "
-            "{ 'tool': 'string', 'path': 'optional relative string', 'content': 'optional string', 'old_content': 'optional string', 'new_content': 'optional string', 'command': 'optional shell command' }. "
-            "IMPORTANT: The 'tool' MUST be exactly one of the following: "
-            "['read_file', 'write_file', 'edit_file', 'list_files', 'execute_terminal']. "
-            "IMPORTANT: All 'path' values MUST be relative to the workspace root. Do NOT use absolute paths like /home/user/. "
+            "You MUST output pure JSON containing ONLY the tool call. "
+            "Format: { 'tool': 'string', 'path': 'optional string', 'content': 'optional string', 'old_content': 'optional string', 'new_content': 'optional string', 'command': 'optional string', 'query': 'optional string' }. "
+            "IMPORTANT: 'tool' MUST be one of: ['write_file', 'edit_file', 'delete_file', 'list_files', 'execute_terminal', 'read_file', 'search_code'].\n\n"
+            "CRITICAL RULES FOR search_code:\n"
+            "- You MUST provide 'query' to search for code.\n"
             "CRITICAL RULES FOR edit_file:\n"
             "- You MUST provide 'old_content' matching EXACTLY what is currently in the file based on the context.\n"
             "- You MUST provide 'new_content' with the replacement string.\n"
@@ -24,6 +24,9 @@ class CoderAgent:
             "- Do NOT chain commands with && unless absolutely necessary.\n"
             "- You MUST provide the exact Windows-compatible shell command to run in the 'command' field.\n"
             "Example: { \"tool\": \"execute_terminal\", \"command\": \"pytest test_hello.py\" }\n\n"
+            "CRITICAL RULES FOR CODE GENERATION:\n"
+            "- Do NOT generate boilerplate code like `def main():` or `if __name__ == '__main__':` unless explicitly requested.\n"
+            "- Only generate the exact code requested by the user, nothing more.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         
@@ -42,6 +45,12 @@ class CoderAgent:
             f"=== WORKSPACE CONTEXT ===\n{context_text}\n\n"
             "Provide the exact tool call JSON."
         )
+        
+        print(f"\n--- CODER DIAGNOSTIC ---")
+        print(f"Model: {model}")
+        print(f"Prompt chars: {len(prompt)}, words: {len(prompt.split())}")
+        print(f"System chars: {len(system_prompt)}, words: {len(system_prompt.split())}")
+        print(f"--------------------------\n")
         
         response = await ollama_client.generate(
             model=model,

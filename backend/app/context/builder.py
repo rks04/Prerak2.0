@@ -20,10 +20,21 @@ class ContextBuilder:
         
         explicit_files = self.file_selector.extract_explicit_files(prompt)
         
+        # Pre-fetch semantic context
+        semantic_context = ""
+        try:
+            from app.tools.workspace_tools.search_code import search_code
+            res = search_code(workspace_root, prompt)
+            if res.success and "No relevant code found" not in res.output:
+                semantic_context = res.output
+        except Exception:
+            pass
+            
         final_context = self.formatter.format_planner_context(
             prompt=prompt,
             recent_messages=recent_messages,
-            workspace_files=workspace_files
+            workspace_files=workspace_files,
+            semantic_context=semantic_context
         )
         final_context = self.token_manager.trim_text(final_context, 3000) # strict planner limit
         

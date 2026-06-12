@@ -3,5 +3,6 @@ ALLOWED_TOOLS = [
     "write_file",
     "edit_file",
     "list_files",
-    "execute_terminal"
+    "execute_terminal",
+    "search_code"
 ]
