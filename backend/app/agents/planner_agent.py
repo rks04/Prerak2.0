@@ -9,18 +9,15 @@ class PlannerAgent:
     async def decompose_task(self, user_request: str, context_text: str = "") -> PlannerOutput:
         model = ModelRouter.get_planner_model()
         system_prompt = (
-            "You are a fast Planning Agent. "
-            "Output pure JSON matching: "
-            "{ 'goal': 'string', 'steps': [ { 'step': int, 'action': 'string', 'path': 'relative_path', 'command': 'optional shell command' } ] }. "
-            "Valid actions: ['read_file', 'write_file', 'edit_file', 'list_files', 'execute_terminal']. "
-            "For execute_terminal, provide the exact shell command in 'command' and leave 'path' empty. "
-            "ENVIRONMENT: Operating System: Windows. Shell: CMD/Powershell. "
-            "IMPORTANT RULES: "
-            "1. Use the MINIMUM number of steps required. "
-            "2. Do NOT use bash syntax (no source, chmod, apt-get, rm, /bin/). "
-            "3. Do NOT create virtual environments unless explicitly requested. "
-            "4. Do NOT chain multiple commands with && if they can be run separately. "
-            "Do NOT include explanations. Only return valid JSON."
+            "You are an expert AI Planner for a local coding agent. "
+            "Your ONLY job is to decompose the user's task into a strictly ordered JSON array of tool calls. "
+            "You MUST output pure JSON matching exactly: "
+            "{ 'goal': 'string', 'steps': [ { 'step': int, 'action': 'string', 'path': 'optional relative path', 'command': 'optional shell command' } ] }. "
+            "IMPORTANT: The 'action' in each step MUST be exactly one of: ['write_file', 'edit_file', 'delete_file', 'list_files', 'execute_terminal', 'read_file'].\n"
+            "CRITICAL RULES:\n"
+            "- Operating System: Windows. If you use 'execute_terminal', provide Windows CMD/Powershell compatible commands only (e.g. no source, no chmod, no /bin/ bash scripts).\n"
+            "- Minimize steps: Do NOT overcomplicate. If the user asks to run a script, just run it. Do NOT create virtual environments or run multi-step setups unless explicitly asked.\n"
+            "- If the user explicitly specifies a filename in their prompt, you may ONLY modify that filename. Never edit similarly named files in the workspace."
         )
         
         response = await ollama_client.generate(

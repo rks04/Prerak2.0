@@ -9,6 +9,14 @@ class FileSelector:
     def __init__(self):
         self.workspace_provider = WorkspaceContextProvider()
 
+    def extract_explicit_files(self, prompt: str) -> List[str]:
+        """Extracts exact filenames with extensions mentioned in the prompt."""
+        # Match words ending in common code extensions
+        pattern = r'\b[\w\.-]+\.(?:py|ts|js|jsx|tsx|css|html|md|json|yml|yaml|sh|txt)\b'
+        matches = re.findall(pattern, prompt)
+        # Return unique list
+        return list(set(matches))
+
     def select_files(self, prompt: str, workspace_root: str, max_files: int = 3, recent_touched_paths: List[str] = None) -> List[str]:
         selected: List[str] = []
         

@@ -18,7 +18,8 @@ class ContextBuilder:
         recent_messages = self.messages_provider.get_recent_messages(workspace_root=workspace_root, convo_id=convo_id, limit=3)
         workspace_files = self.workspace_provider.get_files_in_root(workspace_root)
         
-        # No file reading for planner! Massive speedup.
+        explicit_files = self.file_selector.extract_explicit_files(prompt)
+        
         final_context = self.formatter.format_planner_context(
             prompt=prompt,
             recent_messages=recent_messages,
@@ -26,12 +27,20 @@ class ContextBuilder:
         )
         final_context = self.token_manager.trim_text(final_context, 3000) # strict planner limit
         
+        if explicit_files:
+            explicit_block = "\n=== EXPLICIT USER FILES ===\n"
+            for ef in explicit_files:
+                explicit_block += f"- {ef}\n"
+            explicit_block += "These files are user-authoritative. Only these files may be modified unless the user asks otherwise.\n"
+            final_context += explicit_block
+        
         return {
             "formatted_text": final_context,
             "metadata": {
                 "recent_messages_count": len(recent_messages),
                 "estimated_tokens": len(final_context) // 4,
-                "workspace_files_detected": len(workspace_files)
+                "workspace_files_detected": len(workspace_files),
+                "explicit_files": explicit_files
             }
         }
         

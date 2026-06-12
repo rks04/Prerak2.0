@@ -13,6 +13,7 @@ from app.agents.coder_agent import CoderAgent
 from app.context.builder import context_builder
 from app.db.database import AsyncSessionLocal
 from app.workspace.manager import WorkspaceManager
+from pathlib import Path
 import json
 
 class Orchestrator:
@@ -102,6 +103,27 @@ class Orchestrator:
                 event_type="planner_completed",
                 details=planner_out.model_dump()
             ))
+            
+            # --- ORCHESTRATOR VALIDATION (Deterministic File Targeting) ---
+            explicit_files = context_result["metadata"].get("explicit_files", [])
+            if explicit_files:
+                for step in planner_out.steps:
+                    if step.action in ["write_file", "edit_file", "delete_file"]:
+                        # Allow write_file even if file doesn't exist, as long as it's the requested file
+                        # But strictly forbid editing/modifying ANY file that isn't explicitly listed.
+                        target_base = Path(step.path).name if step.path else ""
+                        if target_base and target_base not in explicit_files:
+                            await event_bus.publish(PrerakEvent(
+                                conversation_id=convo_id,
+                                execution_id=session.execution_id,
+                                workspace_root=self.workspace_root,
+                                event_type="planner_validation_failed",
+                                path=step.path,
+                                details={"reason": "not in explicit user files", "explicit_files": explicit_files}
+                            ))
+                            raise ValueError(f"Planner attempted unauthorized file modification: {step.path} is not in explicit user files.")
+            # -------------------------------------------------------------
+            
         except Exception as e:
             await self.log_transition(session, ExecutionState.FAILED)
             await event_bus.publish(PrerakEvent(
@@ -258,6 +280,32 @@ class Orchestrator:
                 ))
 
                 if result.success:
+                    # --- SYNTAX VERIFICATION ---
+                    if coder_out.tool in ["write_file", "edit_file"] and coder_out.path and coder_out.path.endswith('.py'):
+                        safe_path = resolve_safe_path(self.workspace_root, coder_out.path)
+                        if safe_path.exists():
+                            ver_result = self.verifier.verify_syntax(str(safe_path))
+                            if not ver_result.success:
+                                await event_bus.publish(PrerakEvent(
+                                    conversation_id=convo_id,
+                                    execution_id=session.execution_id,
+                                    workspace_root=self.workspace_root,
+                                    event_type="verification_failed",
+                                    path=coder_out.path,
+                                    details={"error": ver_result.error_message}
+                                ))
+                                error_feedback = ver_result.error_message
+                                if attempt < MAX_RETRIES - 1:
+                                    await event_bus.publish(PrerakEvent(
+                                        conversation_id=convo_id,
+                                        execution_id=session.execution_id,
+                                        workspace_root=self.workspace_root,
+                                        event_type="recovery_started",
+                                        details={"attempt": attempt + 1}
+                                    ))
+                                    await self.log_transition(session, ExecutionState.RECOVERING)
+                                continue # jump to next retry attempt!
+                                
                     step_success = True
                     # Record touched file on success
                     if coder_out.path:
@@ -281,55 +329,16 @@ class Orchestrator:
                 await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.FAILED.value, False, touched_files)
                 return False
 
-        # 4. VERIFYING
-        await self.log_transition(session, ExecutionState.VERIFYING)
+        # 4. COMPLETION
+        await self.log_transition(session, ExecutionState.SUCCESS)
         await event_bus.publish(PrerakEvent(
             conversation_id=convo_id,
             execution_id=session.execution_id,
             workspace_root=self.workspace_root,
-            event_type="verification_started",
-            path="all_touched_files"
+            event_type="execution_completed"
         ))
-        
-        # Verify all touched python files
-        is_valid = True
-        for f in touched_files:
-            target_file = resolve_safe_path(self.workspace_root, f["path"])
-            if target_file.suffix == '.py':
-                if not self.verifier.verify_syntax(str(target_file)):
-                    is_valid = False
-                    break
-        
-        await event_bus.publish(PrerakEvent(
-            conversation_id=session.convo_id,
-            execution_id=session.execution_id,
-            workspace_root=self.workspace_root,
-            event_type="verification_completed",
-            success=is_valid,
-            path="all_touched_files"
-        ))
-
-        if is_valid:
-            await self.log_transition(session, ExecutionState.SUCCESS)
-            await event_bus.publish(PrerakEvent(
-                conversation_id=convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="execution_completed"
-            ))
-            await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.SUCCESS.value, True, touched_files)
-            return True
-        else:
-            await self.log_transition(session, ExecutionState.FAILED)
-            await event_bus.publish(PrerakEvent(
-                conversation_id=convo_id,
-                execution_id=session.execution_id,
-                workspace_root=self.workspace_root,
-                event_type="execution_failed",
-                details={"error": "Syntax verification failed"}
-            ))
-            await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.FAILED.value, False, touched_files)
-            return False
+        await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.SUCCESS.value, True, touched_files)
+        return True
 
     async def _save_state(self, exec_id, convo_id, prompt, state, success, touched_files):
         if AsyncSessionLocal is None:

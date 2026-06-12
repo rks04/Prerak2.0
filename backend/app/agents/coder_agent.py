@@ -29,7 +29,12 @@ class CoderAgent:
         
         feedback_block = ""
         if error_feedback:
-            feedback_block = f"\n=== PREVIOUS ATTEMPT FAILED ===\nError:\n{error_feedback}\n\nYou MUST fix your mistake and try again using the correct parameters or command.\n"
+            feedback_block = (
+                f"\n=== PREVIOUS ATTEMPT FAILED ===\n"
+                f"File: {step_path}\n"
+                f"ERROR:\n{error_feedback}\n\n"
+                f"Do not repeat the same mistake. Regenerate the entire file or command correctly.\n"
+            )
             
         prompt = (
             f"Task: {task_description}\nCurrent Step Action: {step_action}\nPath: {step_path}\n"
