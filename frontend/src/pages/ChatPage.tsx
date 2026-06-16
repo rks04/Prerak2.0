@@ -4,7 +4,6 @@ import { useSocketStore } from "@/stores/socketStore";
 import { ExecutionTimeline } from "@/components/execution/ExecutionTimeline";
 import { PromptInput } from "@/components/chat/PromptInput";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from 'date-fns';
 import { API_BASE_URL } from '../config';
 import { FolderOpen, Plus } from "lucide-react";
 

@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FolderOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { API_BASE_URL } from '../config';
 
 export function WorkspaceSelector() {
-  const [path, setPath] = useState("D:/Riya/MyProject");
+  const [path, setPath] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -52,7 +51,7 @@ export function WorkspaceSelector() {
               value={path}
               onChange={(e) => setPath(e.target.value)}
               className="w-full p-2 bg-secondary text-foreground rounded border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="e.g. D:/Riya/MyProject"
+              placeholder="e.g. /path/to/your/workspace"
             />
           </div>
           
