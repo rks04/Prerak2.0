@@ -4,5 +4,7 @@ ALLOWED_TOOLS = [
     "edit_file",
     "list_files",
     "execute_terminal",
-    "search_code"
+    "search_code",
+    "verify_goal",
+    "task_completed"
 ]

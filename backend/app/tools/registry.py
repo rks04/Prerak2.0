@@ -56,6 +56,15 @@ from app.tools.workspace_tools.list_files import list_files
 from app.tools.terminal_tools.execute_terminal import execute_terminal
 
 from app.tools.workspace_tools.search_code import search_code
+from app.tools.models import ToolResult
+
+def task_completed(summary: str, artifacts: str = "") -> ToolResult:
+    """Call this tool when you have fully completed the goal. Provide a summary of what you did."""
+    return ToolResult(success=True, output=f"Task Completed: {summary}")
+
+def verify_goal(criteria_checked: str, proof_of_success: str) -> ToolResult:
+    """Call this tool to officially verify that the success criteria has been met. You must provide the exact proof (e.g. terminal output) that shows it succeeded."""
+    return ToolResult(success=True, output=f"Goal verified: {criteria_checked}. Proof: {proof_of_success}")
 
 tool_registry.register("write_file", write_file)
 tool_registry.register("read_file", read_file)
@@ -63,3 +72,5 @@ tool_registry.register("edit_file", edit_file)
 tool_registry.register("list_files", list_files)
 tool_registry.register("execute_terminal", execute_terminal)
 tool_registry.register("search_code", search_code)
+tool_registry.register("verify_goal", verify_goal)
+tool_registry.register("task_completed", task_completed)

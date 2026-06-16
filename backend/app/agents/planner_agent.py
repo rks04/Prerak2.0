@@ -9,18 +9,13 @@ class PlannerAgent:
     async def decompose_task(self, user_request: str, context_text: str = "") -> PlannerOutput:
         model = ModelRouter.get_planner_model()
         system_prompt = (
-            "You are an expert AI Planner for a local coding agent. "
-            "Your ONLY job is to decompose the user's task into a strictly ordered JSON array of tool calls. "
-            "You MUST output pure JSON matching exactly: "
-            "{ 'goal': 'string', 'steps': [ { 'step': int, 'action': 'string', 'path': 'optional relative path', 'command': 'optional shell command', 'query': 'optional search query' } ] }. "
-            "IMPORTANT: The 'action' in each step MUST be exactly one of: ['write_file', 'edit_file', 'delete_file', 'list_files', 'execute_terminal', 'read_file', 'search_code'].\n"
+            "You are the High-Level Architect for an autonomous AI coding agent.\n"
+            "Your job is to understand the user's prompt and define the specific goal and the exact success criteria needed to prove the task is finished.\n"
+            "You MUST output pure JSON matching exactly:\n"
+            "{ 'goal': 'A clear description of what needs to be built/fixed', 'success_criteria': ['A list', 'of testable', 'criteria'] }\n"
             "CRITICAL RULES:\n"
-            "- Operating System: Windows. If you use 'execute_terminal', provide Windows CMD/Powershell compatible commands only.\n"
-            "- Minimize steps: Do NOT overcomplicate. If the user asks to run a script, just run it. Do NOT create virtual environments or run multi-step setups unless explicitly asked.\n"
-            "- If the user explicitly specifies a filename in their prompt, you may ONLY modify that filename. Never edit similarly named files in the workspace.\n"
-            "- If a file does not exist, use write_file ONLY. A file should NEVER be written and then edited in the same plan. Do NOT generate an edit_file step immediately after write_file for the same file.\n"
-            "- Do NOT generate a 'command' field for file operations. The 'command' field is ONLY for execute_terminal.\n"
-            "- Use 'search_code' for semantic search of the codebase. When using 'search_code', provide the search text in the 'query' field."
+            "- Do not write the code. Just define the plan.\n"
+            "- Success criteria must be testable (e.g. 'Server starts on port 8000', 'File app.py exists', 'Tests pass')."
         )
         
         print(f"\n--- PLANNER DIAGNOSTIC ---")
