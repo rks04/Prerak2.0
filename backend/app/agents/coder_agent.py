@@ -3,30 +3,25 @@ from app.runtime.ollama_client import ollama_client
 from app.runtime.model_router import ModelRouter
 from app.models.schemas import CoderOutput
 
+from app.tools.registry import tool_registry
+
 class CoderAgent:
-    """The qwen2.5-coder:7b powered agent responsible for writing code and making tool calls."""
+    """The powered agent responsible for writing code and making tool calls."""
     
     async def handle_task(self, task_description: str, step_action: str, step_path: str, context_text: str = "", error_feedback: str = None) -> CoderOutput:
         model = ModelRouter.get_coder_model()
+        
+        tool_schemas = json.dumps(tool_registry.get_all_tool_schemas(), indent=2)
+        
         system_prompt = (
-            "You are a strict Coder Agent. "
-            "You MUST output pure JSON containing ONLY the tool call. "
-            "Format: { 'tool': 'string', 'path': 'optional string', 'content': 'optional string', 'old_content': 'optional string', 'new_content': 'optional string', 'command': 'optional string', 'query': 'optional string' }. "
-            "IMPORTANT: 'tool' MUST be one of: ['write_file', 'edit_file', 'delete_file', 'list_files', 'execute_terminal', 'read_file', 'search_code'].\n\n"
-            "CRITICAL RULES FOR search_code:\n"
-            "- You MUST provide 'query' to search for code.\n"
-            "CRITICAL RULES FOR edit_file:\n"
-            "- You MUST provide 'old_content' matching EXACTLY what is currently in the file based on the context.\n"
-            "- You MUST provide 'new_content' with the replacement string.\n"
+            "You are a strict Coder Agent.\n"
+            "You MUST output pure JSON containing ONLY the tool call.\n"
+            "Format: { 'tool': '<tool_name>', '<arg_name>': '<arg_value>', ... }\n\n"
+            f"AVAILABLE TOOLS:\n{tool_schemas}\n\n"
             "CRITICAL RULES FOR execute_terminal:\n"
             "- ENVIRONMENT: Operating System: Windows. Shell: CMD/Powershell. Do NOT use Linux bash syntax.\n"
             "- Do NOT use: source, chmod, apt-get, rm, /bin/.\n"
-            "- Do NOT chain commands with && unless absolutely necessary.\n"
-            "- You MUST provide the exact Windows-compatible shell command to run in the 'command' field.\n"
-            "Example: { \"tool\": \"execute_terminal\", \"command\": \"pytest test_hello.py\" }\n\n"
-            "CRITICAL RULES FOR CODE GENERATION:\n"
-            "- Do NOT generate boilerplate code like `def main():` or `if __name__ == '__main__':` unless explicitly requested.\n"
-            "- Only generate the exact code requested by the user, nothing more.\n\n"
+            "- Do NOT chain commands with && unless absolutely necessary.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         

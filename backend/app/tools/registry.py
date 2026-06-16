@@ -1,6 +1,8 @@
 from typing import Callable, Dict
 from app.security.tool_permissions import ALLOWED_TOOLS
 
+import inspect
+
 class ToolRegistry:
     def __init__(self):
         self._tools: Dict[str, Callable] = {}
@@ -11,6 +13,38 @@ class ToolRegistry:
 
     def get_tool(self, name: str) -> Callable:
         return self._tools.get(name)
+
+    def get_all_tool_schemas(self) -> list[dict]:
+        schemas = []
+        for name, func in self._tools.items():
+            sig = inspect.signature(func)
+            doc = inspect.getdoc(func) or ""
+            
+            params = {}
+            required = []
+            for param_name, param in sig.parameters.items():
+                if param_name == "workspace_root":
+                    continue
+                
+                param_type = "string"
+                if param.annotation == int:
+                    param_type = "integer"
+                elif param.annotation == bool:
+                    param_type = "boolean"
+                
+                params[param_name] = {
+                    "type": param_type
+                }
+                if param.default == inspect.Parameter.empty:
+                    required.append(param_name)
+                    
+            schemas.append({
+                "tool_name": name,
+                "description": doc.split("\n")[0] if doc else f"Tool: {name}",
+                "parameters": params,
+                "required": required
+            })
+        return schemas
 
 tool_registry = ToolRegistry()
 

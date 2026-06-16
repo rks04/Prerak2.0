@@ -12,11 +12,9 @@ class PlannerOutput(BaseModel):
     goal: str
     steps: List[PlannerStep]
 
+from pydantic import ConfigDict
+
 class CoderOutput(BaseModel):
     tool: str
-    path: Optional[str] = None
-    content: Optional[str] = None
-    old_content: Optional[str] = None
-    new_content: Optional[str] = None
-    command: Optional[str] = None
-    query: Optional[str] = None
+    
+    model_config = ConfigDict(extra='allow')

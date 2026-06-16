@@ -42,6 +42,7 @@ backend/.memory/
 .prerak/
 prerak_backup.sql
 prerak_clean.sql
+*.zip
 
 # Frontend Build (Uncomment if you don't want to commit the dist folder)
 # frontend/dist/
