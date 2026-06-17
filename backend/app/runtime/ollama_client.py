@@ -26,6 +26,14 @@ class OllamaClient:
                 response.raise_for_status()
                 data = response.json()
                 return data.get("response", "")
+            except httpx.HTTPStatusError as e:
+                error_body = e.response.text
+                try:
+                    error_json = e.response.json()
+                    error_body = error_json.get("error", error_body)
+                except Exception:
+                    pass
+                raise RuntimeError(f"Ollama API Error [{e.response.status_code}]: {error_body}")
             except httpx.TimeoutException:
                 raise TimeoutError("Ollama took too long to respond (> 900s). Try a simpler prompt or ensure your local model is loaded.")
             except Exception as e:
