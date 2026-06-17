@@ -196,8 +196,17 @@ class Orchestrator:
                 if failure_memory[error_hash] >= 3:
                     conversation_history.append({
                         "role": "system", 
-                        "content": f"Error: {result.error}\n\n[SYSTEM WARNING]: You have hit this EXACT SAME ERROR {failure_memory[error_hash]} times in a row. Stop repeating the same failed strategy. You MUST try a completely different approach (e.g. read the file to understand it, use a different tool, or search for a different solution)."
+                        "content": f"Error: {result.error}\n\n[SYSTEM TERMINATION]: You hit this EXACT SAME ERROR {failure_memory[error_hash]} times. Execution aborted to prevent infinite loops."
                     })
+                    await self.log_transition(session, ExecutionState.FAILED)
+                    await event_bus.publish(PrerakEvent(
+                        conversation_id=convo_id,
+                        execution_id=session.execution_id,
+                        workspace_root=self.workspace_root,
+                        event_type="execution_failed",
+                        details={"error": f"Infinite loop detected. Terminating ReAct."}
+                    ))
+                    break  # Terminate the ReAct loop
                 else:
                     conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
                     
