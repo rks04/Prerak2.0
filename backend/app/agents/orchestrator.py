@@ -3,7 +3,7 @@ from app.execution.state import ExecutionState
 from app.events.event_bus import event_bus
 from app.events.schema import PrerakEvent
 from app.tools.executor import ToolExecutor
-from app.models.schemas import PlannerOutput, PlannerStep, CoderOutput
+from app.models.schemas import PlannerOutput, CoderOutput
 from app.verifier.python_verifier import PythonVerifier
 from app.tools.utils import resolve_safe_path
 from app.core.config import settings
