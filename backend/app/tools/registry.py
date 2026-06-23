@@ -60,9 +60,9 @@ from app.tools.workspace_tools.search_code import search_code_semantic
 from app.tools.workspace_tools.search_code_exact import search_code_exact
 from app.tools.models import ToolResult
 
-def task_completed(summary: str, artifacts: str = "") -> ToolResult:
-    """Call this tool when you have fully completed the goal. Provide a summary of what you did."""
-    return ToolResult(success=True, output=f"Task Completed: {summary}")
+def task_completed(status: str, summary: str, evidence: list[str] = []) -> ToolResult:
+    """Call this tool when you have fully completed the goal OR when the goal is blocked/impossible. Status MUST be 'success', 'failed', or 'blocked'. Provide a summary and evidence."""
+    return ToolResult(success=True, output=f"Task Completed [{status}]: {summary}. Evidence: {evidence}")
 
 def verify_goal(criteria_checked: str, proof_of_success: str) -> ToolResult:
     """Call this tool to officially verify that the success criteria has been met. You must provide the exact proof (e.g. terminal output) that shows it succeeded."""

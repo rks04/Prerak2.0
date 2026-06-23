@@ -114,11 +114,12 @@ class Orchestrator:
         task_description = (
             f"Goal: {planner_out.goal}\n"
             f"Success Criteria:\n" + "\n".join(f"- {c}" for c in planner_out.success_criteria) + "\n\n"
+            f"Failure Conditions (BLOCKED if these occur):\n" + "\n".join(f"- {c}" for c in planner_out.failure_conditions) + "\n\n"
             f"Suggested Strategy:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(planner_out.suggested_strategy))
         )
         
         MAX_ITERATIONS = 15
-        step_success = False
+        final_state = None
         action_memory = {}
         
         for iteration in range(MAX_ITERATIONS):
@@ -155,16 +156,23 @@ class Orchestrator:
                 ))
                 return False
 
+            # --- DYNAMIC TOOL DISPATCH PREP ---
+            tool_kwargs = coder_out.model_extra.copy() if coder_out.model_extra else {}
+            
             # Check for task completion
             if coder_out.tool == "task_completed":
-                step_success = True
+                status = tool_kwargs.get("status", "success")
+                if status == "success":
+                    final_state = ExecutionState.SUCCESS
+                elif status == "blocked":
+                    final_state = ExecutionState.BLOCKED
+                else:
+                    final_state = ExecutionState.FAILED
                 break
                 
             # 3. EXECUTING
             await self.log_transition(session, ExecutionState.EXECUTING)
             
-            # --- DYNAMIC TOOL DISPATCH ---
-            tool_kwargs = coder_out.model_extra.copy() if coder_out.model_extra else {}
             tool_kwargs["workspace_root"] = self.workspace_root
             
             # Record what tool was called to history
@@ -182,10 +190,6 @@ class Orchestrator:
                 tool=coder_out.tool,
                 details=safe_log_kwargs
             ))
-            
-            # Record Execution Memory (Phase 13D.5)
-            # In a full implementation, we would insert this into the DB.
-            # For now, it's tracked in conversation_history array which is attached to the state memory below.
             
             # Action Memory (Phase 13E)
             import hashlib
@@ -208,7 +212,7 @@ class Orchestrator:
                     "role": "system", 
                     "content": f"[SYSTEM TERMINATION]: You hit this EXACT SAME ACTION {action_memory[action_hash]} times. Execution aborted to prevent infinite loops."
                 })
-                await self.log_transition(session, ExecutionState.FAILED)
+                final_state = ExecutionState.FAILED
                 await event_bus.publish(PrerakEvent(
                     conversation_id=convo_id,
                     execution_id=session.execution_id,
@@ -237,8 +241,8 @@ class Orchestrator:
                 details={"output": result.output, "error": result.error}
             ))
 
-        if not step_success:
-            await self.log_transition(session, ExecutionState.FAILED)
+        if not final_state:
+            final_state = ExecutionState.FAILED
             await event_bus.publish(PrerakEvent(
                 conversation_id=convo_id,
                 execution_id=session.execution_id,
@@ -246,11 +250,9 @@ class Orchestrator:
                 event_type="execution_failed",
                 details={"error": "Max iterations reached without task_completed"}
             ))
-            await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.FAILED.value, False, touched_files)
-            return False
 
         # 4. COMPLETION
-        await self.log_transition(session, ExecutionState.SUCCESS)
+        await self.log_transition(session, final_state)
         
         final_summary = "Task completed successfully."
         try:
@@ -278,8 +280,9 @@ class Orchestrator:
         except Exception as e:
             print(f"Failed to write execution memory: {e}")
             
-        await self._save_state(session.execution_id, convo_id, prompt, ExecutionState.SUCCESS.value, True, touched_files)
-        return True
+        is_success = final_state == ExecutionState.SUCCESS
+        await self._save_state(session.execution_id, convo_id, prompt, final_state.value, is_success, touched_files)
+        return is_success
 
     async def _save_state(self, exec_id, convo_id, prompt, state, success, touched_files):
         if AsyncSessionLocal is None:

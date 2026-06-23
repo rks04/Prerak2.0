@@ -7,4 +7,5 @@ class ExecutionState(str, Enum):
     VERIFYING = "VERIFYING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    BLOCKED = "BLOCKED"
     RECOVERING = "RECOVERING"
