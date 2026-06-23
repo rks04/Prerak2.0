@@ -19,4 +19,4 @@ class ModelRouter:
         
     @staticmethod
     def get_summarizer_model() -> str:
-        return "gemma2:2b"
+        return "gemma2:9b"
