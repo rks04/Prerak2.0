@@ -2,9 +2,9 @@ import json
 from app.tools.models import ToolResult
 from app.context.workspace_indexer import WorkspaceIndexer
 
-def search_code(workspace_root: str, query: str) -> ToolResult:
-    """Semantically searches the workspace codebase for the query."""
-    print(f"SEARCH_CODE: started with query '{query}'")
+def search_code_semantic(workspace_root: str, query: str) -> ToolResult:
+    """Semantically searches the workspace codebase for the query. Best for conceptual questions like 'How does auth work?'."""
+    print(f"SEARCH_CODE_SEMANTIC: started with query '{query}'")
     try:
         from app.context.workspace_indexer import get_indexer
         

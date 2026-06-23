@@ -5,7 +5,8 @@ ALLOWED_TOOLS = [
     "delete_file",
     "list_files",
     "execute_terminal",
-    "search_code",
+    "search_code_exact",
+    "search_code_semantic",
     "verify_goal",
     "task_completed"
 ]

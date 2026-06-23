@@ -56,7 +56,8 @@ from app.tools.file_tools.delete_file import delete_file
 from app.tools.workspace_tools.list_files import list_files
 from app.tools.terminal_tools.execute_terminal import execute_terminal
 
-from app.tools.workspace_tools.search_code import search_code
+from app.tools.workspace_tools.search_code import search_code_semantic
+from app.tools.workspace_tools.search_code_exact import search_code_exact
 from app.tools.models import ToolResult
 
 def task_completed(summary: str, artifacts: str = "") -> ToolResult:
@@ -73,6 +74,7 @@ tool_registry.register("edit_file", edit_file)
 tool_registry.register("delete_file", delete_file)
 tool_registry.register("list_files", list_files)
 tool_registry.register("execute_terminal", execute_terminal)
-tool_registry.register("search_code", search_code)
+tool_registry.register("search_code_semantic", search_code_semantic)
+tool_registry.register("search_code_exact", search_code_exact)
 tool_registry.register("verify_goal", verify_goal)
 tool_registry.register("task_completed", task_completed)

@@ -119,7 +119,7 @@ class Orchestrator:
         
         MAX_ITERATIONS = 15
         step_success = False
-        failure_memory = {}
+        action_memory = {}
         
         for iteration in range(MAX_ITERATIONS):
             await event_bus.publish(PrerakEvent(
@@ -187,33 +187,44 @@ class Orchestrator:
             # In a full implementation, we would insert this into the DB.
             # For now, it's tracked in conversation_history array which is attached to the state memory below.
             
+            # Action Memory (Phase 13E)
+            import hashlib
+            action_string = f"{coder_out.tool}:{json.dumps(safe_log_kwargs, sort_keys=True)}"
+            action_hash = hashlib.md5(action_string.encode()).hexdigest()
+            action_memory[action_hash] = action_memory.get(action_hash, 0) + 1
+            
+            if action_memory[action_hash] == 3:
+                # Phase 13E.2: Loop Intervention Prompt
+                conversation_history.append({
+                    "role": "system",
+                    "content": "You have attempted the EXACT same action 3 times. The previous strategy is clearly not working. You MUST choose a completely different tool or explain why the goal cannot be completed. Do not repeat this action again."
+                })
+                await self.log_transition(session, ExecutionState.RECOVERING)
+                continue # Skip executing it a 3rd time, force them to think again
+                
+            elif action_memory[action_hash] >= 5:
+                # Phase 13E.3: Hard Termination
+                conversation_history.append({
+                    "role": "system", 
+                    "content": f"[SYSTEM TERMINATION]: You hit this EXACT SAME ACTION {action_memory[action_hash]} times. Execution aborted to prevent infinite loops."
+                })
+                await self.log_transition(session, ExecutionState.FAILED)
+                await event_bus.publish(PrerakEvent(
+                    conversation_id=convo_id,
+                    execution_id=session.execution_id,
+                    workspace_root=self.workspace_root,
+                    event_type="execution_failed",
+                    details={"error": f"Infinite loop detected on tool {coder_out.tool}. Terminating ReAct."}
+                ))
+                break  # Terminate the ReAct loop
+            
             result = self.executor.execute(coder_out.tool, tool_kwargs)
             
             # Append result to history
             if result.success:
                 conversation_history.append({"role": "system", "content": f"Success: {result.output}"})
             else:
-                import hashlib
-                error_hash = hashlib.md5(str(result.error).encode()).hexdigest()
-                failure_memory[error_hash] = failure_memory.get(error_hash, 0) + 1
-                
-                if failure_memory[error_hash] >= 3:
-                    conversation_history.append({
-                        "role": "system", 
-                        "content": f"Error: {result.error}\n\n[SYSTEM TERMINATION]: You hit this EXACT SAME ERROR {failure_memory[error_hash]} times. Execution aborted to prevent infinite loops."
-                    })
-                    await self.log_transition(session, ExecutionState.FAILED)
-                    await event_bus.publish(PrerakEvent(
-                        conversation_id=convo_id,
-                        execution_id=session.execution_id,
-                        workspace_root=self.workspace_root,
-                        event_type="execution_failed",
-                        details={"error": f"Infinite loop detected. Terminating ReAct."}
-                    ))
-                    break  # Terminate the ReAct loop
-                else:
-                    conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
-                    
+                conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
                 await self.log_transition(session, ExecutionState.RECOVERING)
                 
             await event_bus.publish(PrerakEvent(
