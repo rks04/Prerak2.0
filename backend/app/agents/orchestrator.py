@@ -111,7 +111,11 @@ class Orchestrator:
         # 2. AUTONOMOUS REACT LOOP
         await self.log_transition(session, ExecutionState.CODING)
         conversation_history = []
-        task_description = f"Goal: {planner_out.goal}\nSuccess Criteria:\n" + "\n".join(f"- {c}" for c in planner_out.success_criteria)
+        task_description = (
+            f"Goal: {planner_out.goal}\n"
+            f"Success Criteria:\n" + "\n".join(f"- {c}" for c in planner_out.success_criteria) + "\n\n"
+            f"Suggested Strategy:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(planner_out.suggested_strategy))
+        )
         
         MAX_ITERATIONS = 15
         step_success = False

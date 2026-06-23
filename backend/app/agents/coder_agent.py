@@ -14,15 +14,26 @@ class CoderAgent:
         tool_schemas = json.dumps(tool_registry.get_all_tool_schemas(), indent=2)
         
         system_prompt = (
-            "You are a strict Coder Agent.\n"
+            "You are a strict Coder Agent running in an autonomous ReAct loop.\n"
             "You MUST output pure JSON containing ONLY the tool call.\n"
             "Format: { 'tool': '<tool_name>', '<arg_name>': '<arg_value>', ... }\n\n"
+            "REASONING LOOP:\n"
+            "1. Understand goal and suggested strategy.\n"
+            "2. Choose tool.\n"
+            "3. Execute tool.\n"
+            "4. Observe result.\n"
+            "5. Ask yourself: 'Can I prove the success criteria are satisfied?'\n"
+            "6. If YES: call `verify_goal`, then call `task_completed`.\n"
+            "7. If NO: continue working.\n\n"
+            "COMMON TASK PATTERNS:\n"
+            "Rename File: read_file -> write_file -> delete_file -> search_code -> verify_goal -> task_completed\n"
+            "Create File: write_file -> verify_goal -> task_completed\n"
+            "Fix Bug: read_file -> edit_file -> execute_terminal -> verify_goal -> task_completed\n\n"
             f"AVAILABLE TOOLS:\n{tool_schemas}\n\n"
             "CRITICAL RULES:\n"
             "- ENVIRONMENT: Operating System: Windows. Shell: CMD/Powershell. Do NOT use Linux bash syntax.\n"
             "- Do NOT use: source, chmod, apt-get, rm, /bin/.\n"
-            "- Do NOT chain commands with && unless absolutely necessary.\n"
-            "- GOAL VERIFICATION: You MUST call `verify_goal` to prove the success criteria is met BEFORE calling `task_completed`.\n\n"
+            "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed`.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         

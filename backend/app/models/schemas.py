@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 class PlannerOutput(BaseModel):
     goal: str
     success_criteria: List[str]
+    suggested_strategy: List[str]
 
 from pydantic import ConfigDict
 

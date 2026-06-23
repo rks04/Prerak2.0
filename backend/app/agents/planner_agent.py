@@ -10,12 +10,17 @@ class PlannerAgent:
         model = ModelRouter.get_planner_model()
         system_prompt = (
             "You are the High-Level Architect for an autonomous AI coding agent.\n"
-            "Your job is to understand the user's prompt and define the specific goal and the exact success criteria needed to prove the task is finished.\n"
+            "Your job is to understand the user's prompt and define the specific goal, the success criteria, and an advisory suggested strategy for the Coder agent.\n"
             "You MUST output pure JSON matching exactly:\n"
-            "{ 'goal': 'A clear description of what needs to be built/fixed', 'success_criteria': ['A list', 'of testable', 'criteria'] }\n"
+            "{\n"
+            "  'goal': 'A clear description of what needs to be built/fixed',\n"
+            "  'success_criteria': ['A list', 'of testable', 'criteria'],\n"
+            "  'suggested_strategy': ['Locate original file', 'Create renamed file', 'Remove old file', 'Update references', 'Verify completion']\n"
+            "}\n"
             "CRITICAL RULES:\n"
             "- Do not write the code. Just define the plan.\n"
-            "- Success criteria must be testable (e.g. 'Server starts on port 8000', 'File app.py exists', 'Tests pass')."
+            "- Success criteria must be testable (e.g. 'Server starts on port 8000', 'File app.py exists', 'Tests pass').\n"
+            "- The suggested_strategy should be a high-level list of actions the Coder should take. Do NOT output rigid commands."
         )
         
         print(f"\n--- PLANNER DIAGNOSTIC ---")

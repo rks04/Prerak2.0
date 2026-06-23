@@ -3,20 +3,20 @@ class ModelRouter:
     
     @staticmethod
     def get_planner_model() -> str:
-        return "qwen2.5:7b"
-        
-    @staticmethod
-    def get_coder_model() -> str:
-        return "qwen2.5-coder:14b"
-        
-    @staticmethod
-    def get_reasoner_model() -> str:
-        return "deepseek-r1:14b"
-        
-    @staticmethod
-    def get_verifier_model() -> str:
         return "qwen2.5:3b"
         
     @staticmethod
+    def get_coder_model() -> str:
+        return "qwen2.5-coder:7b"
+        
+    @staticmethod
+    def get_reasoner_model() -> str:
+        return "deepseek-r1:7b"  
+        
+    @staticmethod
+    def get_verifier_model() -> str:
+        return "qwen2.5:1.5b"
+        
+    @staticmethod
     def get_summarizer_model() -> str:
-        return "gemma2:9b"
+        return "gemma2:2b"
