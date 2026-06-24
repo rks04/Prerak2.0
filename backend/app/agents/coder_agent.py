@@ -37,9 +37,12 @@ class CoderAgent:
             "- Do NOT use: source, chmod, apt-get, rm, /bin/.\n"
             "- To find a file by its name, you MUST use `list_files`.\n"
             "- To find specific code or text INSIDE a file, you MUST use `search_code_exact`.\n"
+            "- EXECUTION-FIRST: When asked to fix an execution error, you MUST `execute_terminal` FIRST to observe the error, before modifying any code.\n"
+            "- EDIT ENFORCEMENT: You MUST `read_file` before you `edit_file`. The `old_content` in `edit_file` MUST perfectly match a substring of the text returned by `read_file`.\n"
             "- FAITHFULNESS: When fixing errors, preserve original behavior exactly. Make the SMALLEST possible change that satisfies the goal.\n"
             "- DO NOT rewrite working code. DO NOT refactor. DO NOT change string outputs or variable names unless explicitly required to fix the error.\n"
-            "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed(status=\"success\")`. Your verification MUST compare intended behavior with actual behavior, not just successful execution without crashes.\n\n"
+            "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed(status=\"success\")`. Your verification MUST compare intended behavior with actual behavior.\n"
+            "- EVIDENCE-BASED COMPLETION: Do not call `task_completed(status=\"success\")` unless you have explicit terminal output proving success.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         

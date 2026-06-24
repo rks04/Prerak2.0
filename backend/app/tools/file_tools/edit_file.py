@@ -18,7 +18,7 @@ def edit_file(workspace_root: str, path: str, old_content: str, new_content: str
                     f.write(updated_content)
                 return ToolResult(success=True, output=f"Successfully initialized {path} with new content.")
             else:
-                return ToolResult(success=False, error="old_content cannot be empty unless the file is completely empty. Provide the exact text to replace.")
+                return ToolResult(success=False, error="ERROR: old_content cannot be empty. You MUST perfectly match existing text from the file. Use read_file to see the exact text first.")
             
         if old_content not in content:
             return ToolResult(success=False, error="Target content not found in file.")

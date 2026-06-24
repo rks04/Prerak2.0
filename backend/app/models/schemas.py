@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 
 class PlannerOutput(BaseModel):
     goal: str
+    task_type: str
     success_criteria: List[str]
     failure_conditions: List[str]
     suggested_strategy: List[str]

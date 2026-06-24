@@ -228,7 +228,10 @@ class Orchestrator:
             if result.success:
                 conversation_history.append({"role": "system", "content": f"Success: {result.output}"})
             else:
-                conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
+                if result.error and "security policy" in result.error:
+                    conversation_history.append({"role": "system", "content": f"Error: {result.error}\n\n[SYSTEM RECOVERY HINT]: Try another allowed prefix before declaring blocked. Do NOT use python3 if only python is allowed."})
+                else:
+                    conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
                 await self.log_transition(session, ExecutionState.RECOVERING)
                 
             await event_bus.publish(PrerakEvent(
