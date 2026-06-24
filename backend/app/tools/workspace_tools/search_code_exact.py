@@ -9,8 +9,8 @@ def search_code_exact(workspace_root: str, query: str) -> ToolResult:
         root_path = resolve_safe_path(workspace_root, ".")
         results = []
         
-        # Exclude common large/binary directories
-        exclude_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "build", ".prerak"}
+        # Exclude common large/binary directories and execution memory
+        exclude_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "build", ".prerak", ".memory", "logs", "scratch"}
         
         for dirpath, dirnames, filenames in os.walk(root_path):
             # Mutate dirnames to exclude ignored directories

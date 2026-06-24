@@ -21,7 +21,8 @@ class PlannerAgent:
             "CRITICAL RULES:\n"
             "- Do not write the code. Just define the plan.\n"
             "- Success criteria must be testable (e.g. 'Server starts on port 8000', 'File app.py exists', 'Tests pass').\n"
-            "- The suggested_strategy should be a high-level list of actions the Coder should take. Do NOT output rigid commands."
+            "- The suggested_strategy should be a high-level list of actions the Coder should take. Do NOT output rigid commands.\n"
+            "- NEVER invent new files, new names, or complex refactors unless the user explicitly asks for them. Keep the strategy minimal and strictly focused on the exact prompt."
         )
         
         print(f"\n--- PLANNER DIAGNOSTIC ---")
