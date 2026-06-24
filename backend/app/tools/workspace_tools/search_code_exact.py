@@ -3,7 +3,7 @@ from app.tools.models import ToolResult
 from app.tools.utils import resolve_safe_path
 
 def search_code_exact(workspace_root: str, query: str) -> ToolResult:
-    """Performs an exact string match search across all files in the workspace. Returns 'No matches found' if not found."""
+    """Performs an exact string match search for text INSIDE files across the workspace. DO NOT use this to find files by filename (use list_files instead)."""
     print(f"SEARCH_CODE_EXACT: started with query '{query}'")
     try:
         root_path = resolve_safe_path(workspace_root, ".")
