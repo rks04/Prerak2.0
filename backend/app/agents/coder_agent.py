@@ -43,6 +43,8 @@ class CoderAgent:
             "- DO NOT rewrite working code. DO NOT refactor. DO NOT change string outputs or variable names unless explicitly required to fix the error.\n"
             "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed(status=\"success\")`. Your verification MUST compare intended behavior with actual behavior.\n"
             "- EVIDENCE-BASED COMPLETION: Do not call `task_completed(status=\"success\")` unless you have explicit terminal output proving success.\n\n"
+            "RECOVERY RULES:\n"
+            "- If `edit_file` fails: 1. call `read_file` again to get the true file state, 2. ensure `old_content` matches perfectly, 3. retry edit. 4. If it fails again, use `write_file` to completely overwrite the entire file with the correct contents.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         
