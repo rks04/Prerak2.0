@@ -38,7 +38,7 @@ class CoderAgent:
             "- To find a file by its name, you MUST use `list_files`.\n"
             "- To find specific code or text INSIDE a file, you MUST use `search_code_exact`.\n"
             "- EXECUTION-FIRST: When asked to fix an execution error, you MUST `execute_terminal` FIRST to observe the error, before modifying any code.\n"
-            "- EDIT ENFORCEMENT: You MUST `read_file` before you `edit_file`. The `old_content` in `edit_file` MUST perfectly match a substring of the text returned by `read_file`.\n"
+            "- EDIT ENFORCEMENT: You MUST `read_file` before you `edit_file`. The `old_content` in `edit_file` MUST perfectly match a substring of the text returned by `read_file`. DO NOT append artificial newlines (\\n) to `old_content` if they don't exist in the file.\n"
             "- FAITHFULNESS: When fixing errors, preserve original behavior exactly. Make the SMALLEST possible change that satisfies the goal.\n"
             "- DO NOT rewrite working code. DO NOT refactor. DO NOT change string outputs or variable names unless explicitly required to fix the error.\n"
             "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed(status=\"success\")`. Your verification MUST compare intended behavior with actual behavior.\n"

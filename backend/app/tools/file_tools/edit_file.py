@@ -21,8 +21,14 @@ def edit_file(workspace_root: str, path: str, old_content: str, new_content: str
                 return ToolResult(success=False, error="ERROR: old_content cannot be empty. You MUST perfectly match existing text from the file. Use read_file to see the exact text first.")
             
         if old_content not in content:
-            return ToolResult(success=False, error="Target content not found in file.")
-            
+            # Fallback: LLMs sometimes mistakenly add a trailing newline to old_content
+            if old_content.endswith('\n') and old_content[:-1] in content:
+                old_content = old_content[:-1]
+                if new_content.endswith('\n'):
+                    new_content = new_content[:-1]
+            else:
+                return ToolResult(success=False, error="Target content not found in file. Ensure you are not appending artificial newlines (\\n) that don't exist in the file.")
+                
         updated_content = content.replace(old_content, new_content)
         
         with open(safe_path, 'w', encoding='utf-8') as f:
