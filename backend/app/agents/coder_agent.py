@@ -8,7 +8,7 @@ from app.tools.registry import tool_registry
 class CoderAgent:
     """The powered agent responsible for writing code and making tool calls."""
     
-    async def handle_task(self, task_description: str, conversation_history: list[dict], context_text: str = "") -> CoderOutput:
+    async def handle_task(self, task_description: str, conversation_history: list[dict], context_text: str = "", working_memory: dict = None, iteration: int = 1) -> CoderOutput:
         model = ModelRouter.get_coder_model()
         
         tool_schemas = json.dumps(tool_registry.get_all_tool_schemas(), indent=2)
@@ -38,28 +38,58 @@ class CoderAgent:
             "- To find a file by its name, you MUST use `list_files`.\n"
             "- To find specific code or text INSIDE a file, you MUST use `search_code_exact`.\n"
             "- EXECUTION-FIRST: When asked to fix an execution error, you MUST `execute_terminal` FIRST to observe the error, before modifying any code.\n"
-            "- EDIT ENFORCEMENT: You MUST `read_file` before you `edit_file`. The `old_content` in `edit_file` MUST perfectly match a substring of the text returned by `read_file`. DO NOT append artificial newlines (\\n) to `old_content` if they don't exist in the file.\n"
+            "- EDIT ENFORCEMENT: You MUST `read_file` before you `edit_file` initially. The `old_content` in `edit_file` MUST perfectly match a substring of the text. DO NOT append artificial newlines (\\n) to `old_content` if they don't exist in the file.\n"
             "- FAITHFULNESS: When fixing errors, preserve original behavior exactly. Make the SMALLEST possible change that satisfies the goal.\n"
             "- DO NOT rewrite working code. DO NOT refactor. DO NOT change string outputs or variable names unless explicitly required to fix the error.\n"
             "- GOAL VERIFICATION: You MUST call `verify_goal` BEFORE calling `task_completed(status=\"success\")`. Your verification MUST compare intended behavior with actual behavior.\n"
             "- EVIDENCE-BASED COMPLETION: Do not call `task_completed(status=\"success\")` unless you have explicit terminal output proving success.\n\n"
             "RECOVERY RULES:\n"
-            "- If `edit_file` fails: 1. call `read_file` again to get the true file state, 2. ensure `old_content` matches perfectly, 3. retry edit. 4. If it fails again, use `write_file` to completely overwrite the entire file with the correct contents.\n\n"
+            "- If `edit_file` fails: 1. Look at the `WORKSPACE CONTEXT` block to see the exact current file state, 2. ensure your `old_content` matches perfectly, 3. retry edit. 4. If it fails again, use `write_file` to completely overwrite the entire file with the correct contents.\n\n"
             "Do NOT include markdown blocks, prose, or explanations. Only return valid JSON."
         )
         
+        # Phase 14D: Truncate Planner strategy after Iteration 2
+        if iteration > 2:
+            task_description = f"Current Goal: {task_description.split('Success Criteria:')[0].replace('Goal:', '').strip()}\n(Strategy omitted to save context - focus on fixing immediate errors)"
+            
+        # Phase 14A: Conversation Compression
         history_block = ""
-        for i, turn in enumerate(conversation_history):
+        recent_turns = conversation_history[-4:] if len(conversation_history) >= 4 else conversation_history
+        older_turns = conversation_history[:-4] if len(conversation_history) >= 4 else []
+        
+        for turn in older_turns:
             if turn["role"] == "assistant":
-                history_block += f"\n[Iteration {i//2 + 1}] YOU CALLED TOOL:\n{turn['content']}\n"
+                try:
+                    t = json.loads(turn['content'])
+                    history_block += f"[Past] Used: {t.get('tool')}\n"
+                except:
+                    history_block += f"[Past] Action Attempted\n"
             elif turn["role"] == "system":
-                history_block += f"[Iteration {i//2 + 1}] TOOL RESULT:\n{turn['content']}\n"
+                history_block += f"[Past] Result: (truncated)\n"
+                
+        for turn in recent_turns:
+            if turn["role"] == "assistant":
+                history_block += f"\n[Recent] YOU CALLED TOOL:\n{turn['content']}\n"
+            elif turn["role"] == "system":
+                content = turn['content']
+                if len(content) > 800:
+                    content = content[:400] + "\n...[TRUNCATED]...\n" + content[-400:]
+                history_block += f"[Recent] TOOL RESULT:\n{content}\n"
+                
+        # Phase 14B: Deterministic Working Memory
+        wm_block = ""
+        if working_memory:
+            wm_block = "=== WORKING MEMORY (FACTS) ===\n"
+            for k, v in working_memory.items():
+                if v: wm_block += f"{k}: {v}\n"
+            wm_block += "\n"
                 
         prompt = (
-            f"Goal: {task_description}\n\n"
+            f"Task:\n{task_description}\n\n"
+            f"{wm_block}"
             f"=== WORKSPACE CONTEXT ===\n{context_text}\n\n"
             f"=== EXECUTION HISTORY ===\n{history_block if history_block else 'No tools called yet.'}\n\n"
-            "Analyze the history and workspace context. Decide the next step. Provide the exact tool call JSON."
+            "Analyze Working Memory, history and context. Decide the next step. Provide the exact tool call JSON."
         )
         
         print(f"\n--- CODER DIAGNOSTIC ---")

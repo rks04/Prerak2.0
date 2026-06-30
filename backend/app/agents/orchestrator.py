@@ -122,6 +122,14 @@ class Orchestrator:
         final_state = None
         action_memory = {}
         
+        # Phase 14B: Orchestrator Working Memory
+        working_memory = {
+            "Current File": None,
+            "Last Read File Text": None,
+            "Last Terminal Error": None,
+            "Last Edit Status": None
+        }
+        
         for iteration in range(MAX_ITERATIONS):
             await event_bus.publish(PrerakEvent(
                 conversation_id=convo_id,
@@ -133,10 +141,10 @@ class Orchestrator:
             
             try:
                 # ---> BUILD CODER CONTEXT <---
-                coder_context_result = context_builder.build_coder_context(prompt, self.workspace_root, "")
+                coder_context_result = context_builder.build_coder_context(prompt, self.workspace_root, working_memory["Current File"] or "")
                 coder_context_text = coder_context_result["formatted_text"]
                 
-                coder_out = await self.coder.handle_task(task_description, conversation_history, coder_context_text)
+                coder_out = await self.coder.handle_task(task_description, conversation_history, coder_context_text, working_memory, iteration + 1)
                 
                 await event_bus.publish(PrerakEvent(
                     conversation_id=convo_id,
@@ -223,6 +231,23 @@ class Orchestrator:
                 break  # Terminate the ReAct loop
             
             result = self.executor.execute(coder_out.tool, tool_kwargs)
+            
+            # Phase 14B: Update Working Memory deterministically based on tool and outcome
+            if coder_out.tool == "read_file" and result.success:
+                working_memory["Current File"] = tool_kwargs.get("path")
+                working_memory["Last Read File Text"] = result.output[:200] + "..." if len(result.output) > 200 else result.output
+            elif coder_out.tool == "execute_terminal":
+                if not result.success:
+                    working_memory["Last Terminal Error"] = result.error[:300] + "..." if len(result.error) > 300 else result.error
+                else:
+                    working_memory["Last Terminal Error"] = "Fixed! Execution successful."
+            elif coder_out.tool == "edit_file":
+                if result.success:
+                    working_memory["Last Edit Status"] = "Success"
+                else:
+                    working_memory["Last Edit Status"] = f"Failed: {result.error}"
+            elif coder_out.tool == "write_file" and result.success:
+                working_memory["Last Edit Status"] = "Overwritten File Successfully"
             
             # Append result to history
             if result.success:
