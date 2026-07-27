@@ -6,7 +6,7 @@ class PlannerOutput(BaseModel):
     task_type: str
     success_criteria: List[str]
     failure_conditions: List[str]
-    suggested_strategy: List[str]
+    tool_sequence: List[str]
 
 from pydantic import ConfigDict
 

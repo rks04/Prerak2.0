@@ -17,12 +17,12 @@ class PlannerAgent:
             "  'task_type': 'One of: create_file, edit_file, rename_file, execute_and_fix, search, refactor',\n"
             "  'success_criteria': ['A list', 'of testable', 'criteria'],\n"
             "  'failure_conditions': ['A list', 'of blocking conditions', 'e.g. security policy', 'dependency unavailable'],\n"
-            "  'suggested_strategy': ['Action 1', 'Action 2', '...']\n"
+            "  'tool_sequence': ['read_file', 'edit_file', 'execute_terminal', 'verify_goal', 'task_completed']\n"
             "}\n"
             "CRITICAL RULES:\n"
             "- Do not write the code. Just define the plan.\n"
-            "- The `task_type` dictates the `suggested_strategy`. For example, if task_type is 'execute_and_fix', the strategy MUST be strictly: ['Execute file', 'Observe failure', 'Read file', 'Fix issue', 'Execute again', 'Verify'].\n"
-            "- NEVER invent new files, new names, or complex refactors unless the user explicitly asks for them. Keep the strategy minimal and strictly focused on the exact prompt."
+            "- The `task_type` dictates the `tool_sequence`. For example, if task_type is 'execute_and_fix', the sequence MUST be strictly: ['execute_terminal', 'read_file', 'edit_file', 'execute_terminal', 'verify_goal', 'task_completed'].\n"
+            "- NEVER invent new files, new names, or complex refactors unless the user explicitly asks for them. Keep the sequence minimal and strictly focused on the exact prompt."
         )
         
         print(f"\n--- PLANNER DIAGNOSTIC ---")

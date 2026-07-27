@@ -115,14 +115,20 @@ class Orchestrator:
             f"Goal: {planner_out.goal}\n"
             f"Success Criteria:\n" + "\n".join(f"- {c}" for c in planner_out.success_criteria) + "\n\n"
             f"Failure Conditions (BLOCKED if these occur):\n" + "\n".join(f"- {c}" for c in planner_out.failure_conditions) + "\n\n"
-            f"Suggested Strategy:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(planner_out.suggested_strategy))
+            f"Tool Sequence:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(planner_out.tool_sequence))
         )
         
         MAX_ITERATIONS = 15
         final_state = None
         action_memory = {}
         
-        # Phase 14B: Orchestrator Working Memory
+        # Phase 16: Execution Context and Sequence Tracking
+        execution_context = {
+            "mode": "NORMAL",
+            "sequence": planner_out.tool_sequence,
+            "current_index": 0
+        }
+        
         working_memory = {
             "Current File": None,
             "Last Read File Text": None,
@@ -167,8 +173,19 @@ class Orchestrator:
             # --- DYNAMIC TOOL DISPATCH PREP ---
             tool_kwargs = coder_out.model_extra.copy() if coder_out.model_extra else {}
             
+            # --- TOOL GUARD SEQUENCE VALIDATION ---
+            tool_blocked = False
+            guard_reason = ""
+            
+            if execution_context["mode"] == "NORMAL":
+                if execution_context["current_index"] < len(execution_context["sequence"]):
+                    expected_tool = execution_context["sequence"][execution_context["current_index"]]
+                    if coder_out.tool != expected_tool:
+                        tool_blocked = True
+                        guard_reason = f"Expected '{expected_tool}', but received '{coder_out.tool}'. You must follow the planned sequence."
+            
             # Check for task completion
-            if coder_out.tool == "task_completed":
+            if coder_out.tool == "task_completed" and not tool_blocked:
                 status = tool_kwargs.get("status", "success")
                 if status == "success":
                     final_state = ExecutionState.SUCCESS
@@ -230,8 +247,15 @@ class Orchestrator:
                 ))
                 break  # Terminate the ReAct loop
             
-            result = self.executor.execute(coder_out.tool, tool_kwargs)
-            
+            if tool_blocked:
+                # Mock result for blocked tool
+                class GuardResult:
+                    success = False
+                    output = ""
+                    error = f"Tool blocked by Orchestrator. Reason: {guard_reason}"
+                result = GuardResult()
+            else:
+                result = self.executor.execute(coder_out.tool, tool_kwargs)
             # Phase 14B: Update Working Memory deterministically based on tool and outcome
             if coder_out.tool == "read_file" and result.success:
                 working_memory["Current File"] = tool_kwargs.get("path")
@@ -251,13 +275,19 @@ class Orchestrator:
             
             # Append result to history
             if result.success:
+                if execution_context["mode"] == "NORMAL":
+                    execution_context["current_index"] += 1
                 conversation_history.append({"role": "system", "content": f"Success: {result.output}"})
             else:
-                if result.error and "security policy" in result.error:
-                    conversation_history.append({"role": "system", "content": f"Error: {result.error}\n\n[SYSTEM RECOVERY HINT]: Try another allowed prefix before declaring blocked. Do NOT use python3 if only python is allowed."})
-                else:
+                if tool_blocked:
                     conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
-                await self.log_transition(session, ExecutionState.RECOVERING)
+                else:
+                    execution_context["mode"] = "RECOVERY"
+                    if result.error and "security policy" in result.error:
+                        conversation_history.append({"role": "system", "content": f"Error: {result.error}\n\n[SYSTEM RECOVERY HINT]: Try another allowed prefix before declaring blocked. Do NOT use python3 if only python is allowed."})
+                    else:
+                        conversation_history.append({"role": "system", "content": f"Error: {result.error}"})
+                    await self.log_transition(session, ExecutionState.RECOVERING)
                 
             await event_bus.publish(PrerakEvent(
                 conversation_id=session.convo_id,
