@@ -1,5 +1,5 @@
 import json
-from app.runtime.ollama_client import ollama_client
+from app.runtime.model_router import model_router
 from app.runtime.model_router import ModelRouter
 from app.models.schemas import PlannerOutput
 
@@ -31,7 +31,7 @@ class PlannerAgent:
         print(f"System chars: {len(system_prompt)}, words: {len(system_prompt.split())}")
         print(f"--------------------------\n")
         
-        response = await ollama_client.generate(
+        response = await model_router.generate(
             model=model,
             prompt=user_request,
             system_prompt=system_prompt,

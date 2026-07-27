@@ -1,4 +1,4 @@
-from app.runtime.ollama_client import ollama_client
+from app.runtime.model_router import model_router
 from app.runtime.model_router import ModelRouter
 
 class SynthesizerAgent:
@@ -36,7 +36,7 @@ class SynthesizerAgent:
         )
         
         try:
-            response = await ollama_client.generate(
+            response = await model_router.generate(
                 model=model,
                 prompt=prompt,
                 system_prompt=system_prompt,
