@@ -17,7 +17,7 @@ class ModelRouter:
         
     @staticmethod
     def get_coder_model() -> str:
-        return "qwen3-coder:latest"
+        return "ornith:35b"
         
     @staticmethod
     def get_reasoner_model() -> str:

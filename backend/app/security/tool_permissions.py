@@ -7,6 +7,7 @@ ALLOWED_TOOLS = [
     "execute_terminal",
     "search_code_exact",
     "search_code_semantic",
-    "verify_goal",
-    "task_completed"
+    "http_request",
+    "create_project",
+    "tail_process_logs"
 ]
